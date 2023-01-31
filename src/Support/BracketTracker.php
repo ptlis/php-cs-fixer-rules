@@ -48,7 +48,7 @@ final class BracketTracker
         $this->types = $types;
     }
 
-    public function foo(Token $token): void
+    public function trackToken(Token $token): void
     {
         foreach ($this->types as $type) {
             switch ($token->getContent()) {

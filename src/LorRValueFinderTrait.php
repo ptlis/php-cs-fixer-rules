@@ -6,6 +6,7 @@ namespace ptlis\PhpCsFixerRules;
 
 use PhpCsFixer\Tokenizer\Token;
 use PhpCsFixer\Tokenizer\Tokens;
+use ptlis\PhpCsFixerRules\Support\BracketTracker;
 
 /**
  * Provides functionality to extract the tokens for the 'L' or 'R' values of an expression. For example in this
@@ -29,59 +30,34 @@ trait LorRValueFinderTrait
      *
      * @return array{int, string} The index at which the expression starts & the context.
      */
-    public function getStartTokenIndexExpressionContext(int $binaryOperatorIndex, Tokens $tokens): array
+    public function getStartTokenIndexAndExpressionContext(int $binaryOperatorIndex, Tokens $tokens): array
     {
         $tokenIndex = $binaryOperatorIndex;
         $lastTokenIndex = $binaryOperatorIndex;
-
-        // Track opening / closing brackets - must be balanced for expression to be complete
-        $roundBracketCount = 0;
-        $squareBracketCount = 0;
+        $bracketTracker = new BracketTracker([BracketTracker::TYPE_ROUND, BracketTracker::TYPE_SQUARE]);
 
         // Iterate backwards through tokens until we have an opening parens, return statement or an opening parens '('
         while (!is_null($tokenIndex) && $token = $tokens[$tokenIndex]) {
+            if ($bracketTracker->isBalanced()) {
 
-            if (
-                (
+                if (
                     $token->getId() === T_OPEN_TAG
                     || (is_null($token->getId()) && $token->getContent() === ';')
                     || (is_null($token->getId()) && $token->getContent() === '}')
-                )
-                && !$roundBracketCount
-                && !$squareBracketCount
-            ) {
-                return [$lastTokenIndex, ExpressionContext::STAND_ALONE];
+                ) {
+                    return [$lastTokenIndex, ExpressionContext::STAND_ALONE];
+                }
+
+                if ($token->getContent() === '(') {
+                    return [$lastTokenIndex, ExpressionContext::PARENS];
+                }
+
+                if ($token->getId() === T_RETURN) {
+                    return [$lastTokenIndex, ExpressionContext::RETURN];
+                }
             }
 
-            if (
-                $token->getContent() === '('
-                && !$roundBracketCount
-                && !$squareBracketCount
-            ) {
-                return [$lastTokenIndex, ExpressionContext::PARENS];
-            }
-
-            if ($token->getId() === T_RETURN) {
-                return [$lastTokenIndex, ExpressionContext::RETURN];
-            }
-
-
-            // Track brackets
-            switch ($token->getContent()) {
-                case '(':
-                    $roundBracketCount++;
-                    break;
-                case ')':
-                    $roundBracketCount--;
-                    break;
-                case '[':
-                    $squareBracketCount++;
-                    break;
-                case ']':
-                    $squareBracketCount--;
-                    break;
-            }
-
+            $bracketTracker->trackToken($token);
             $lastTokenIndex = $tokenIndex;
             $tokenIndex = $tokens->getPrevMeaningfulToken($tokenIndex);
         }
@@ -92,13 +68,13 @@ trait LorRValueFinderTrait
 
     public function getExpressionStartTokenIndex(int $binaryOperatorIndex, Tokens $tokens): int
     {
-        [$startTokenIndex] = $this->getStartTokenIndexExpressionContext($binaryOperatorIndex, $tokens);
+        [$startTokenIndex] = $this->getStartTokenIndexAndExpressionContext($binaryOperatorIndex, $tokens);
         return $startTokenIndex;
     }
 
     public function getExpressionContext(int $binaryOperatorIndex, Tokens $tokens): string
     {
-        [, $expressionContext] = $this->getStartTokenIndexExpressionContext($binaryOperatorIndex, $tokens);
+        [, $expressionContext] = $this->getStartTokenIndexAndExpressionContext($binaryOperatorIndex, $tokens);
         return $expressionContext;
     }
 
@@ -109,42 +85,26 @@ trait LorRValueFinderTrait
     {
         $tokenIndex = $operatorIndex;
         $lastTokenIndex = $operatorIndex;
-
-        // Track opening / closing brackets - must be balanced for expression to be complete
-        $roundBracketCount = 0;
-        $squareBracketCount = 0;
+        $bracketTracker = new BracketTracker([BracketTracker::TYPE_ROUND, BracketTracker::TYPE_SQUARE]);
 
         while ($token = $tokens[$tokenIndex]) {
-            switch ($context) {
-                case ExpressionContext::PARENS:
-                    if (!$roundBracketCount && !$squareBracketCount && $token->getContent() === ')') {
-                        return $lastTokenIndex;
-                    }
-                    break;
-                case ExpressionContext::RETURN:
-                case ExpressionContext::STAND_ALONE:
-                    if ($token->getContent() === ';') {
-                        return $lastTokenIndex;
-                    }
-                    break;
+            if ($bracketTracker->isBalanced()) {
+                switch ($context) {
+                    case ExpressionContext::PARENS:
+                        if ($token->getContent() === ')') {
+                            return $lastTokenIndex;
+                        }
+                        break;
+                    case ExpressionContext::RETURN:
+                    case ExpressionContext::STAND_ALONE:
+                        if ($token->getContent() === ';') {
+                            return $lastTokenIndex;
+                        }
+                        break;
+                }
             }
 
-            // Track brackets
-            switch ($token->getContent()) {
-                case '(':
-                    $roundBracketCount++;
-                    break;
-                case ')':
-                    $roundBracketCount--;
-                    break;
-                case '[':
-                    $squareBracketCount++;
-                    break;
-                case ']':
-                    $squareBracketCount--;
-                    break;
-            }
-
+            $bracketTracker->trackToken($token);
             $lastTokenIndex = $tokenIndex;
             $tokenIndex = $tokens->getNextMeaningfulToken($tokenIndex);
         }

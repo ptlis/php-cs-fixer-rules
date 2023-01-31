@@ -13,7 +13,7 @@ use ptlis\PhpCsFixerRules\LorRValueFinderTrait;
 /**
  * @covers \ptlis\PhpCsFixerRules\LorRValueFinderTrait
  */
-class LorRValueFinderTraitTest extends TestCase
+final class LorRValueFinderTraitTest extends TestCase
 {
     /**
      * Returns an object that uses the 'L or R value finder' trait.

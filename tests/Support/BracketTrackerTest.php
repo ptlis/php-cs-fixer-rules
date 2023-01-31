@@ -18,13 +18,13 @@ final class BracketTrackerTest extends TestCase
         $tracker = new BracketTracker([BracketTracker::TYPE_SQUARE]);
         $this->assertTrue($tracker->isBalanced());
 
-        $tracker->foo(new Token('['));
+        $tracker->trackToken(new Token('['));
         $this->assertFalse($tracker->isBalanced());
 
-        $tracker->foo(new Token(')'));
+        $tracker->trackToken(new Token(')'));
         $this->assertFalse($tracker->isBalanced());
 
-        $tracker->foo(new Token(']'));
+        $tracker->trackToken(new Token(']'));
         $this->assertTrue($tracker->isBalanced());
     }
 
@@ -33,13 +33,13 @@ final class BracketTrackerTest extends TestCase
         $tracker = new BracketTracker([BracketTracker::TYPE_SQUARE, BracketTracker::TYPE_ROUND]);
         $this->assertTrue($tracker->isBalanced());
 
-        $tracker->foo(new Token('['));
+        $tracker->trackToken(new Token('['));
         $this->assertFalse($tracker->isBalanced());
 
-        $tracker->foo(new Token(')'));
+        $tracker->trackToken(new Token(')'));
         $this->assertFalse($tracker->isBalanced());
 
-        $tracker->foo(new Token(']'));
+        $tracker->trackToken(new Token(']'));
         $this->assertFalse($tracker->isBalanced());
     }
 }
